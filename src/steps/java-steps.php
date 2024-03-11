@@ -1,12 +1,12 @@
 <?php
 
 /**
- * @return array<string, string>
+ * @return array<string, string|false>
  */
 function javaPayloadStep(string $payload, string $body): array
 {
     $step = <<<'STEP'
-    String payload = (new JSONObject(jsonPayload)).toString();
+    String payload = (new JSONObject(%s)).toString();
     STEP;
     // particularity of JSONObject is that it sorts the JSON keys
     $orderedPayload = json_decode($payload, true);

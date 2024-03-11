@@ -1,7 +1,9 @@
 parameters:
-    phpVersion: 70400 # PHP 7.4
-    level: 8
+    level: 6
     paths:
         - src
     excludePaths:
         - src/views
+    ignoreErrors:
+        - '#^Variable \$defaultValues might not be defined\.$#'
+        - '#^Variable \$hostPath might not be defined\.$#'

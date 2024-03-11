@@ -26,11 +26,11 @@ $requirements = [
 ];
 
 $completeExamples = [
-    'csharp' => '<a href="https://github.com/Fintecture/signature-guide/blob/src/scripts/csharp" target="_blank">View complete example on GitHub</a>',
-    'php' => '<a href="https://github.com/Fintecture/signature-guide/blob/src/scripts/php-example.php" target="_blank">View complete example on GitHub</a>',
-    'javascript' => '<a href="https://github.com/Fintecture/signature-guide/blob/src/scripts/js-example.js" target="_blank">View complete example on GitHub</a>',
-    'java' => '<a href="https://github.com/Fintecture/signature-guide/blob/src/scripts/java-example.java" target="_blank">View complete example on GitHub</a>',
-    'python' => '<a href="https://github.com/Fintecture/signature-guide/blob/src/scripts/python-example.py" target="_blank">View complete example on GitHub</a>'
+    'csharp' => '<a href="https://github.com/Fintecture/signature-guide/blob/main/src/scripts/csharp/csharp-example.cs" target="_blank">View complete example on GitHub</a>',
+    'php' => '<a href="https://github.com/Fintecture/signature-guide/blob/main/src/scripts/php-example.php" target="_blank">View complete example on GitHub</a>',
+    'javascript' => '<a href="https://github.com/Fintecture/signature-guide/blob/main/src/scripts/js-example.js" target="_blank">View complete example on GitHub</a>',
+    'java' => '<a href="https://github.com/Fintecture/signature-guide/blob/main/src/scripts/java-example.java" target="_blank">View complete example on GitHub</a>',
+    'python' => '<a href="https://github.com/Fintecture/signature-guide/blob/main/src/scripts/python-example.py" target="_blank">View complete example on GitHub</a>'
 ];
 
 // Import logic
@@ -128,10 +128,9 @@ function handlingForm()
 
 /**
  * @param array<string, string> $values
- * @param resource $privateKey
- * @return array<int, array>|string
+ * @return array<int, array<mixed>>|string
  */
-function makeSteps(array $values, $privateKey, string $language)
+function makeSteps(array $values, OpenSSLAsymmetricKey $privateKey, string $language)
 {
     // Create public key from private key
     $publicKeyInfos = openssl_pkey_get_details($privateKey);

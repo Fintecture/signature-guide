@@ -29,10 +29,7 @@ function createSigningString(string $requestTarget, string $date, string $xReque
         . ($digest ? PHP_EOL . 'digest: ' . $digest : '') . PHP_EOL . 'x-request-id: ' . $xRequestId;
 }
 
-/**
- * @param resource $privateKey
- */
-function createSignature(string $signingString, $privateKey): string
+function createSignature(string $signingString, OpenSSLAsymmetricKey $privateKey): string
 {
     openssl_sign($signingString, $rawSignature, $privateKey, OPENSSL_ALGO_SHA256); // sign signing string
     return base64_encode($rawSignature);
@@ -43,10 +40,7 @@ function createSignatureHeader(string $appId, string $headers, string $signature
     return 'keyId="' . $appId . '",algorithm="rsa-sha256",headers="' . $headers . '",signature="' . $signature . '"';
 }
 
-/**
- * @param resource $publicKey
- */
-function createSignatureMatch(string $signingString, string $signature, $publicKey): bool
+function createSignatureMatch(string $signingString, string $signature, OpenSSLAsymmetricKey $publicKey): bool
 {
     return openssl_verify($signingString, base64_decode($signature), $publicKey, OPENSSL_ALGO_SHA256) === 1 ? true : false;
 }
