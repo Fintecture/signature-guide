@@ -1,0 +1,6 @@
+.php-cs-fixer.cache
+tools
+vendor
+src/scripts/private_key.pem
+src/scripts/csharp/bin
+src/scripts/csharp/obj

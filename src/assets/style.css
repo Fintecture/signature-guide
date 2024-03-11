@@ -1,0 +1,12 @@
+#logo {
+    margin-right: 20px;
+    height: 48px;
+}
+
+.alert-info {
+    margin-top: 20px;
+}
+
+.alert-info p {
+    margin-bottom: unset;
+}
