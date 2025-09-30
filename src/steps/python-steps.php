@@ -115,17 +115,38 @@ function pythonSignatureHeaderStep(string $signatureHeader, string $appId, strin
 function pythonSignatureMatchStep(bool $signatureMatch): array
 {
     $step = <<<'STEP'
-    try:
-        public_key = private_key.public_key()
-        public_key.verify(
-            base64.b64decode(signature),
-            signing_string.encode('utf-8'),
-            padding.PKCS1v15(),
-            hashes.SHA256()
+    private_key = serialization.load_pem_private_key(
+        private_key_pem.encode(),
+        password=None
+    )
+
+    # Compute digest body
+    digest_body = "SHA-256=" + base64.b64encode(body).decode("utf-8")
+
+    # Digest header
+    digest_header = digest.replace("\\", "")
+
+    # Extract the signature (placeholder for your extraction logic)
+    extracted_signature = extract_signature(signature)
+
+    # Decrypt with private key
+    decrypted = private_key.decrypt(
+        extracted_signature,
+        padding.OAEP(
+            mgf=padding.MGF1(algorithm=hashes.SHA1()),  # PHP OPENSSL_PKCS1_OAEP_PADDING uses SHA1 by default
+            algorithm=hashes.SHA1(),
+            label=None
         )
-        signatureMatch = True
-    except:
-        signatureMatch = False
+    )
+
+    # Split into lines
+    signing_string = re.split(r"\r?\n", decrypted.decode("utf-8"))
+
+    # Extract digest signature (line 1, removing `digest: ` prefix and quotes)
+    digest_signature = signing_string[1][8:].replace('"', '')
+
+    # Return comparison result
+    return digest_body == digest_signature and digest_body == digest_header
     STEP;
 
     return [

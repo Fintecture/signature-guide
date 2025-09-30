@@ -32,8 +32,6 @@ public class Program {
             PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(privateKeyBytes);
             PrivateKey privateKey = keyFactory.generatePrivate(keySpec);
 
-            // Get public key from private key
-
             RSAPrivateCrtKey rsaPrivateKey = (RSAPrivateCrtKey) privateKey;
             RSAPrivateCrtKeySpec rsaPrivateCrtKeySpec = new RSAPrivateCrtKeySpec(
                     rsaPrivateKey.getModulus(),
@@ -44,9 +42,6 @@ public class Program {
                     rsaPrivateKey.getPrimeExponentP(),
                     rsaPrivateKey.getPrimeExponentQ(),
                     rsaPrivateKey.getCrtCoefficient());
-
-            PublicKey publicKey = KeyFactory.getInstance("RSA").generatePublic(
-                    new RSAPublicKeySpec(rsaPrivateKey.getModulus(), rsaPrivateKey.getPublicExponent()));
 
             // Create payload
 
@@ -78,14 +73,26 @@ public class Program {
                     + "algorithm=\"rsa-sha256\",headers=\"(request-target) date digest x-request-id\"," + "signature=\""
                     + signature + "\"";
 
-            // Verify signature
+            // Verify signature (decrypt with private key and compare digests like in steps)
 
-            Signature publicSignature = Signature.getInstance("SHA256withRSA");
-            publicSignature.initVerify(publicKey);
-            publicSignature.update(signingString.getBytes(StandardCharsets.UTF_8));
-            boolean verifySignature = publicSignature.verify(Base64.getDecoder().decode(signature));
+            // Compute body digest from raw body
+            String digestBody = "SHA-256=" + Base64.getEncoder().encodeToString(jsonPayload.getBytes(StandardCharsets.UTF_8));
 
-            System.out.println("Signature match: " + verifySignature);
+            // Header digest without backslashes
+            String digestHeader = digestValue.replace("\\", "");
+
+            // Decrypt signature with RSA-OAEP SHA-1 (to mirror PHP OPENSSL_PKCS1_OAEP_PADDING)
+            javax.crypto.Cipher rsa = javax.crypto.Cipher.getInstance("RSA/ECB/OAEPWithSHA-1AndMGF1Padding");
+            rsa.init(javax.crypto.Cipher.DECRYPT_MODE, privateKey);
+            byte[] decrypted = rsa.doFinal(Base64.getDecoder().decode(signature));
+
+            String[] lines = new String(decrypted, StandardCharsets.UTF_8).split("\\r?\\n");
+            String line1 = lines.length > 1 ? lines[1] : ""; // 0: date, 1: digest: "<value>"
+            String digestSignature = line1.length() >= 8 ? line1.substring(8).replace("\"", "") : "";
+
+            boolean signatureMatch = digestBody.equals(digestSignature) && digestBody.equals(digestHeader);
+
+            System.out.println("Signature match: " + signatureMatch);
 
         } catch (IOException | NoSuchAlgorithmException | InvalidKeyException | InvalidKeySpecException
                 | SignatureException e) {

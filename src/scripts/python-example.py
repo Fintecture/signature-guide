@@ -16,10 +16,6 @@ private_key = serialization.load_pem_private_key(
     backend=default_backend()
 )
 
-# Get public key from private key
-
-public_key = private_key.public_key()
-
 # Create payload
 
 with open("data.json", 'r') as file:
@@ -53,15 +49,29 @@ headerSignature = 'keyId="2fa2be62-94b0-4e88-b089-b73cb1141de0",algorithm="rsa-s
 
 # Verify signature
 
-try:
-    public_key.verify(
-        base64.b64decode(signature),
-        signing_string.encode('utf-8'),
-        padding.PKCS1v15(),
-        hashes.SHA256()
-    )
-    signatureMatch = True
-except:
-    signatureMatch = False
+# Compute digest body from the raw body (data.json content)
+body_bytes = json_payload.encode('utf-8')
+digest_body = "SHA-256=" + base64.b64encode(body_bytes).decode("utf-8")
 
-print(f"Signature Match: '{signatureMatch}'")
+# Digest header (remove backslashes like PHP stripslashes)
+digest_header = digest.replace("\\", "")
+
+# Extract and decrypt signature using private key (OAEP with SHA1 to mirror PHP)
+extracted_signature = base64.b64decode(signature)
+decrypted = private_key.decrypt(
+    extracted_signature,
+    padding.OAEP(
+        mgf=padding.MGF1(algorithm=hashes.SHA1()),
+        algorithm=hashes.SHA1(),
+        label=None
+    )
+)
+
+# Parse decrypted signing string lines (0: date, 1: digest: "<value>")
+signing_string_lines = decrypted.decode('utf-8').splitlines()
+line1 = signing_string_lines[1] if len(signing_string_lines) > 1 else ""
+digest_signature = line1[8:].replace('"', '') if len(line1) >= 8 else ""
+
+signatureMatch = (digest_body == digest_signature) and (digest_body == digest_header)
+
+print(f"Signature Match: {signatureMatch}")

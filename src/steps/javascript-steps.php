@@ -117,10 +117,35 @@ function javascriptSignatureHeaderStep(string $signatureHeader, string $appId, s
 function javascriptSignatureMatchStep(bool $signatureMatch): array
 {
     $step = <<<'STEP'
-    const publicKey = privateKeyObj.export({ type: 'pkcs1', format: 'pem' });
-    const verify = crypto.createVerify('SHA256');
-    verify.update(signingString);
-    const isSignatureValid = verify.verify(publicKey, Buffer.from(signature, 'base64'));
+    // Compute "SHA-256=<base64(body)>" like in PHP Crypto::encodeToBase64($body, true)
+    const bodyBuf = Buffer.isBuffer(%s) ? %s : Buffer.from(%s, 'utf8');
+    const digestBody = 'SHA-256=' + bodyBuf.toString('base64');
+
+    // Header digest with backslashes removed (PHP stripslashes)
+    const digestHeader = digest.replace(/\\/g, '');
+
+    // Extract the actual signature payload (stubbed—match your PHP extractSignature)
+    const extractedSignature = extractSignature(%s);
+
+    // Decrypt with RSA-OAEP (SHA-1 to match OPENSSL_PKCS1_OAEP_PADDING default in PHP)
+    const decrypted = crypto.privateDecrypt(
+        {
+            key: privateKeyPem,
+            padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
+            oaepHash: 'sha1',
+        },
+        extractedSignature
+    );
+
+    // The decrypted content is a "signing string" with lines:
+    // index 0: date, index 1: digest: "<value>"
+    const signingString = decrypted.toString('utf8').split(/\r?\n/);
+
+    // Take line 1, remove leading 'digest: ' (8 chars) and strip quotes
+    const digestSignature = signingString[1].slice(8).replace(/"/g, '');
+
+    // Compare like the PHP return
+    return digestBody === digestSignature && digestBody === digestHeader;
     STEP;
 
     return [
