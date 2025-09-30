@@ -5,11 +5,6 @@
 $privateKey = file_get_contents('private_key.pem');
 $privateKey = openssl_pkey_get_private($privateKey);
 
-// Get public key from private key
-
-$publicKeyStr = openssl_pkey_get_details($privateKey)['key'];
-$publicKey = openssl_pkey_get_public($publicKeyStr);
-
 // Create payload
 
 $jsonPayload = file_get_contents('data.json');
@@ -35,7 +30,13 @@ $headerSignature = 'keyId="2fa2be62-94b0-4e88-b089-b73cb1141de0",algorithm="rsa-
 
 // Verify signature
 
-$verifySignature = openssl_verify($signingString, base64_decode($signature), $publicKey, OPENSSL_ALGO_SHA256);
-$signatureMatch = $verifySignature ? 'true' : 'false';
+$privateKey = openssl_pkey_get_private($privateKey);
+$digestBody = 'SHA-256=' . base64_encode($jsonPayload);
+$digestHeader = stripslashes($digest);
+$extractedSignature = base64_decode($signature);
+openssl_private_decrypt($extractedSignature, $decrypted, $privateKey, OPENSSL_PKCS1_OAEP_PADDING);
+$signingStringLines = preg_split("/\n|\r\n?/", $decrypted);
+$digestSignature = str_replace('"', '', substr($signingStringLines[1] ?? '', 8));
+$signatureMatch = ($digestBody == $digestSignature && $digestBody == $digestHeader) ? 'true' : 'false';
 
 var_dump("Signature match: " . $signatureMatch);

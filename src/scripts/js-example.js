@@ -5,10 +5,6 @@ const fs = require('fs');
 
 const privateKey = fs.readFileSync('private_key.pem', 'utf-8');
 
-// Get public key from private key
-
-const publicKey = privateKeyObj.export({ type: 'pkcs1', format: 'pem' });
-
 // Create payload
 
 const payload = JSON.stringify(fs.readFileSync('data.json', 'utf-8'));
@@ -40,8 +36,33 @@ const headerSignature = 'keyId="2fa2be62-94b0-4e88-b089-b73cb1141de0",algorithm=
 
 // Verify signature
 
-const verify = crypto.createVerify('SHA256');
-verify.update(signingString);
-const isSignatureValid = verify.verify(publicKey, Buffer.from(signature, 'base64'));
+// Compute "SHA-256=<base64(body)>" like in the step guide
+const bodyBuf = Buffer.from(fs.readFileSync('data.json', 'utf-8'), 'utf8');
+const digestBody = 'SHA-256=' + bodyBuf.toString('base64');
 
-console.log("Signature Match: " + isSignatureValid);
+// Header digest with backslashes removed
+const digestHeader = digest.replace(/\\/g, '');
+
+// Extract the actual signature payload (using the built signature directly)
+const extractedSignature = Buffer.from(signature, 'base64');
+
+// Decrypt with RSA-OAEP (SHA-1 to match OPENSSL_PKCS1_OAEP_PADDING default)
+const decrypted = crypto.privateDecrypt(
+  {
+    key: privateKey,
+    padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
+    oaepHash: 'sha1'
+  },
+  extractedSignature
+);
+
+// The decrypted content is a signing string with lines:
+// index 0: date, index 1: digest: "<value>"
+const signingStringLines = decrypted.toString('utf8').split(/\r?\n/);
+
+// Take line 1, remove leading 'digest: ' (8 chars) and strip quotes
+const digestSignature = (signingStringLines[1] || '').slice(8).replace(/"/g, '');
+
+const signatureMatch = digestBody === digestSignature && digestBody === digestHeader;
+
+console.log("Signature Match: " + signatureMatch);

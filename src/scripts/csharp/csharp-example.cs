@@ -46,9 +46,22 @@ class Program
 
         var headerSignature = $"keyId=\"2fa2be62-94b0-4e88-b089-b73cb1141de0\",algorithm=\"rsa-sha256\",headers=\"(request-target) date digest x-request-id\",signature=\"{signature}\"";
 
-        // Verify signature
+        // Verify signature (decrypt with private key and compare digests, like steps)
 
-        var signatureMatch = RSACryptoServiceProviderService.VerifyData(Encoding.UTF8.GetBytes(signingString), rawSignature, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        // Compute body digest from raw body
+        var bodyBytes = Encoding.UTF8.GetBytes(jsonPayload);
+        var digestBody = "SHA-256=" + Convert.ToBase64String(bodyBytes);
+
+        // Header digest without backslashes (PHP stripslashes)
+        var digestHeader = digest.Replace("\\", "");
+
+        // Decrypt using OAEP-SHA1 to mirror PHP OPENSSL_PKCS1_OAEP_PADDING
+        var decrypted = RSACryptoServiceProviderService.Decrypt(Convert.FromBase64String(signature), RSAEncryptionPadding.OaepSHA1);
+        var lines = System.Text.RegularExpressions.Regex.Split(Encoding.UTF8.GetString(decrypted), @"\r?\n");
+        var line1 = lines.Length > 1 ? lines[1] : string.Empty; // 0: date, 1: digest: "<value>"
+        var digestSignature = (line1.Length >= 8 ? line1.Substring(8) : string.Empty).Replace("\"", "");
+
+        var signatureMatch = (digestBody == digestSignature) && (digestBody == digestHeader);
 
         Console.WriteLine($"Signature Match: {signatureMatch}");
     }
