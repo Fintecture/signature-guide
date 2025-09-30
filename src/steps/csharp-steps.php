@@ -118,7 +118,28 @@ function csharpSignatureHeaderStep(string $signatureHeader, string $appId, strin
 function csharpSignatureMatchStep(bool $signatureMatch): array
 {
     $step = <<<'STEP'
-    var signatureMatch = RSACryptoServiceProviderService.VerifyData(Encoding.UTF8.GetBytes(signingString), rawSignature, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+       using var rsa = LoadRsaFromPem(privateKeyPem);
+
+        // "SHA-256=<base64(body)>"
+        var digestBody = "SHA-256=" + Convert.ToBase64String(body);
+
+        // PHP stripslashes()
+        var digestHeader = digest.Replace("\\", "");
+
+        // Match PHP self::extractSignature($signature)
+        var extractedSignature = ExtractSignature(signature);
+
+        // Decrypt (OPENSSL_PKCS1_OAEP_PADDING defaults to SHA1 in PHP)
+        byte[] decrypted = rsa.Decrypt(extractedSignature, RSAEncryptionPadding.OaepSHA1);
+
+        // Split lines (0: date, 1: digest: "<value>")
+        var signingString = Regex.Split(Encoding.UTF8.GetString(decrypted), @"\r?\n");
+
+        // Take line 1, remove 'digest: ' (8 chars) and strip quotes
+        var line1 = signingString.Length > 1 ? signingString[1] : string.Empty;
+        var digestSignature = (line1.Length >= 8 ? line1.Substring(8) : string.Empty).Replace("\"", "");
+
+        return digestBody == digestSignature && digestBody == digestHeader;
     STEP;
 
     return [

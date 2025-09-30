@@ -124,10 +124,26 @@ function javaSignatureHeaderStep(string $signatureHeader, string $appId, string 
 function javaSignatureMatchStep(bool $signatureMatch): array
 {
     $step = <<<'STEP'
-    Signature publicSignature = Signature.getInstance("SHA256withRSA");
-    publicSignature.initVerify(publicKey);
-    publicSignature.update(signingString.getBytes(StandardCharsets.UTF_8));
-    boolean signatureMatch = publicSignature.verify(Base64.getDecoder().decode(signature));
+        // Compute body digest
+        String digestBody = "SHA-256=" + Base64.getEncoder().encodeToString(body);
+
+        // Digest header without backslashes
+        String digestHeader = digest.replace("\\", "");
+
+        // Extract signature (adapt to your extraction)
+        byte[] extractedSignature = Base64.getDecoder().decode(signature);
+
+        // Decrypt signature with RSA-OAEP SHA-1 to mirror PHP OPENSSL_PKCS1_OAEP_PADDING
+        Cipher rsa = Cipher.getInstance("RSA/ECB/OAEPWithSHA-1AndMGF1Padding");
+        rsa.init(Cipher.DECRYPT_MODE, privateKey);
+        byte[] decrypted = rsa.doFinal(extractedSignature);
+
+        // Split lines and extract digest from line 1
+        String[] lines = new String(decrypted, StandardCharsets.UTF_8).split("\\r?\\n");
+        String line1 = lines.length > 1 ? lines[1] : ""; // 0: date, 1: digest: "<value>"
+        String digestSignature = line1.length() >= 8 ? line1.substring(8).replace("\"", "") : "";
+
+        return digestBody.equals(digestSignature) && digestBody.equals(digestHeader);
     STEP;
 
     return [

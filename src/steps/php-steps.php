@@ -122,9 +122,13 @@ function phpSignatureMatchStep(bool $signatureMatch): array
     $step = <<<'STEP'
     <?php
     $privateKey = openssl_pkey_get_private($privateKey);
-    $publicKeyStr = openssl_pkey_get_details($privateKey)['key'];
-    $publicKey = openssl_pkey_get_public($publicKeyStr);
-    $signatureMatch = openssl_verify($signingString, base64_decode($signature), $publicKey, OPENSSL_ALGO_SHA256);
+    $digestBody = 'SHA-256=' . Crypto::encodeToBase64($body, true);
+    $digestHeader = stripslashes($digest);
+    $extractedSignature = self::extractSignature($signature);
+    openssl_private_decrypt($extractedSignature, $decrypted, $privateKey, OPENSSL_PKCS1_OAEP_PADDING);
+    $signingString = preg_split("/\n|\r\n?/", $decrypted);
+    $digestSignature = str_replace('"', '', substr($signingString[1], 8)); // 0: date, 1: digest
+    return $digestBody == $digestSignature && $digestBody == $digestHeader;
     ?>
     STEP;
 
